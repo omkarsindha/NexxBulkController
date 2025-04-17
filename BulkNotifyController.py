@@ -43,7 +43,7 @@ class AppFrame(wx.Frame):
         """Initialize our main application frame."""
         # Call the original constructor to do its job
         TITLE = "%s v%s" % (PRODUCTNAME, VERSION)
-        wx.Frame.__init__(self, parent=None, title=TITLE, size=(1200, 800))
+        wx.Frame.__init__(self, parent=None, title=TITLE, size=(1250, 800))
         self.wxconfig = wx.Config()
         self.http = ahttp.start()
         menubar = wx.MenuBar()
@@ -228,7 +228,7 @@ class SystemNotify(wx.ScrolledWindow):
 
         btn_hbox.Add(self.load_btn, 0, wx.ALL, 10)
         btn_hbox.Add(self.apply_btn, 0, wx.ALL, 10)
-        main_sizer.Add(btn_hbox, 0, wx.ALL | wx.CENTER, 10)
+        main_sizer.Add(btn_hbox, 0, wx.ALL | wx.LEFT, 25)
 
         # System Notify Control
         system_control_label = wx.StaticText(self, label="System Notify Control")
@@ -286,8 +286,7 @@ class SystemNotify(wx.ScrolledWindow):
         reset_seconds_label = wx.StaticText(self, label="(0 to 60) seconds")
         reset_seconds_label.SetForegroundColour(WHITE)
         hbox3.Add(reset_seconds_label, 0, wx.ALL, 5)
-        grid.Add(hbox3, pos=(0, 2),
-                 flag=wx.TOP | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL, border=10)
+        grid.Add(hbox3, pos=(0, 2),flag=wx.TOP | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL, border=10)
 
         # High Lifetime Disk Usage Threshold
         hbox4 = wx.BoxSizer()
@@ -304,7 +303,7 @@ class SystemNotify(wx.ScrolledWindow):
         grid.Add(hbox4, pos=(1, 2),
                  flag=wx.TOP | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL, border=10)
 
-        main_sizer.Add(grid, 0, wx.ALL, 5)
+        main_sizer.Add(grid, 0, wx.ALL | wx.LEFT, 25)
 
         self.spin_inputs[self.cpu_usage_threshold] = self.CPU_USE_TH
         self.spin_inputs[self.cpu_usage_duration] = self.CPU_USE_DUR
@@ -324,26 +323,25 @@ class SystemNotify(wx.ScrolledWindow):
 
         self.toggle_all_button = wx.Button(self, label="Toggle All")
         self.toggle_all_button.Bind(wx.EVT_BUTTON, self.on_toggle_all)
-        head_hbox.Add(self.toggle_all_button, 0, wx.CENTER | wx.LEFT, 25)
-
-        main_sizer.Add(head_hbox, 0, wx.LEFT, 20)
+        head_hbox.Add(self.toggle_all_button, 0, wx.CENTER | wx.LEFT, 5)
 
         # Create a grid sizer for the combo boxes
-        grid_sizer = wx.GridSizer(rows=0, cols=2, hgap=5, vgap=5)
+        grid_sizer = wx.GridBagSizer(hgap=5, vgap=5)
+        grid_sizer.Add(head_hbox, pos=(0,0), flag=wx.ALL, border=5)
 
-        for notification, varid in self.NOTIFICATIONS.items():
+        for i, (notification, varid) in enumerate(self.NOTIFICATIONS.items(), start=1):
             notification_label = wx.StaticText(self, label=notification)
             notification_label.SetForegroundColour(WHITE)
-            grid_sizer.Add(notification_label, 0, wx.ALL, 5)
+            grid_sizer.Add(notification_label, pos=(i, 0), flag=wx.ALL, border=5)
 
             combobox = wx.ComboBox(self, choices=["False", "True"], style=wx.CB_READONLY)
             combobox.SetSelection(1)  # Set "True" as the default selection
             combobox.SetBackgroundColour(DARK_GRAY)
             combobox.SetForegroundColour(WHITE)
             self.comboboxes[combobox] = varid
-            grid_sizer.Add(combobox, 0, wx.ALL, 5)
+            grid_sizer.Add(combobox, pos=(i, 1), flag=wx.ALL, border=5)
 
-        main_sizer.Add(grid_sizer, 0, wx.ALL, 5)
+        main_sizer.Add(grid_sizer, 0, wx.ALL | wx.LEFT, 25)
 
         self.SetSizer(main_sizer)
         self.SetScrollRate(20, 20)
@@ -466,6 +464,7 @@ class VideoNotify(wx.ScrolledWindow):
 
         main_sizer = wx.BoxSizer(wx.VERTICAL)
 
+        top_vbox = wx.BoxSizer(wx.VERTICAL)
         # Buttons for loading and applying values
         btn_hbox = wx.BoxSizer()
         load_label = wx.StaticText(self, label="Load Values from input")
@@ -480,7 +479,7 @@ class VideoNotify(wx.ScrolledWindow):
         btn_hbox.Add(load_label, flag=wx.ALL | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL)
         btn_hbox.Add(self.input, 0, wx.ALL, 10)
         btn_hbox.Add(self.load_btn, 0, wx.ALL, 10)
-        main_sizer.Add(btn_hbox, 0, wx.ALL | wx.CENTER, 10)
+
 
         # Input selection
         input_select_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -506,8 +505,10 @@ class VideoNotify(wx.ScrolledWindow):
         self.apply_input_btn.Bind(wx.EVT_BUTTON, self.on_apply_to_inputs)
         input_select_sizer.Add(self.apply_input_btn, 0, wx.ALL, 5)
 
-        main_sizer.Add(input_select_sizer, 0, wx.ALL | wx.CENTER, 10)
+        top_vbox.Add(btn_hbox, 0, wx.TOP, 5)
+        top_vbox.Add(input_select_sizer, 0, wx.TOP, 5)
 
+        main_sizer.Add(top_vbox, 0, wx.ALL, 25)
         # Video Monitoring Control section
         self.create_video_monitoring_control(main_sizer)
 
@@ -586,7 +587,8 @@ class VideoNotify(wx.ScrolledWindow):
             self.comboboxes[combobox] = var_id
             row += 1
 
-        main_sizer.Add(grid, 0, wx.ALL, 10)
+        main_sizer.Add(grid, 0, wx.ALL | wx.LEFT, 25)
+
 
     def create_video_notify(self, main_sizer):
         # Video Notify header
@@ -633,7 +635,7 @@ class VideoNotify(wx.ScrolledWindow):
 
             grid.Add(combobox, pos=(row+1, 1), flag=wx.ALL, border=5)
 
-        main_sizer.Add(grid, 0, wx.ALL, 10)
+        main_sizer.Add(grid, 0, wx.ALL | wx.LEFT, 25)
 
     def update_status(self, message, pane=0):
         self.main_frame.SetStatusText(message, pane)
@@ -682,9 +684,9 @@ class VideoNotify(wx.ScrolledWindow):
 
             for combobox, var_id in self.comboboxes.items():
                 value = combobox.GetSelection()
-                print(value)
+                #print(value)
                 var_id = var_id.replace("x", str(input_num-1))
-                print(var_id)
+                #print(var_id)
                 url = f"http://{ip}/v.api/apis/EV/SET/parameter/{var_id}/{value}"
                 self.http.get(url)
 
@@ -711,7 +713,7 @@ class VideoNotify(wx.ScrolledWindow):
             varid = varid.replace("x", str(input_num-1))
             url = f"http://{ip}/v.api/apis/EV/GET/parameter/{varid}"
             op = self.http.get(url, block=True)
-            print(op.content)
+            #print(op.content)
             op_content = json.loads(op.content)
             try:
                 value = int(op_content.get("value", None))
@@ -742,101 +744,100 @@ class AudioNotify(wx.ScrolledWindow):
 
     # Audio Monitoring Control parameters for individual channels
     # Format: parameter.input.channel@i
-    AUDIO_OVER_LEVEL = "500.x.y@i"
-    AUDIO_OVER_DURATION = "501.x.y@i"
-    AUDIO_OVER_RESET_DURATION = "502.x.y@i"
-    AUDIO_SILENCE_LEVEL = "503.x.y@i"
-    AUDIO_SILENCE_DURATION = "504.x.y@i"
-    AUDIO_SILENCE_RESET_DURATION = "505.x.y@i"
-    AUDIO_LOSS_DURATION = "506.x.y@i"
-    AUDIO_LOSS_RESET_DURATION = "507.x.y@i"
+    AUDIO_OVER_LEVEL = "511.x.y@i"
+    AUDIO_OVER_DURATION = "512.x.y@i"
+    AUDIO_OVER_RESET_DURATION = "513.x.y@i"
+    AUDIO_SILENCE_LEVEL = "514.x.y@i"
+    AUDIO_SILENCE_DURATION = "515.x.y@i"
+    AUDIO_SILENCE_RESET_DURATION = "516.x.y@i"
+    AUDIO_LOSS_DURATION = "517.x.y@i"
+    AUDIO_LOSS_RESET_DURATION = "518.x.y@i"
 
     # Audio Monitoring Control parameters for pairs
     # Format: parameter.input.pair@i
-    MONO_DETECTION_LEVEL = "510.x.y@i"
-    MONO_DETECTION_DURATION = "511.x.y@i"
-    MONO_DETECTION_RESET_DURATION = "512.x.y@i"
-    PHASE_REVERSE_LEVEL = "513.x.y@i"
-    PHASE_REVERSE_DURATION = "514.x.y@i"
-    PHASE_REVERSE_RESET_DURATION = "515.x.y@i"
+    MONO_DETECTION_LEVEL = "521.x.y@i"
+    MONO_DETECTION_DURATION = "522.x.y@i"
+    MONO_DETECTION_RESET_DURATION = "523.x.y@i"
+    PHASE_REVERSE_LEVEL = "524.x.y@i"
+    PHASE_REVERSE_DURATION = "525.x.y@i"
+    PHASE_REVERSE_RESET_DURATION = "526.x.y@i"
 
     # Audio Notify parameters
     # Dictionary mapping notification types to their var_ids
     AUDIO_NOTIFICATIONS = {
         # Channel Loss
-        "Channel 1 Audio Loss": "600.x.0@i",
-        "Channel 2 Audio Loss": "600.x.1@i",
-        "Channel 3 Audio Loss": "600.x.2@i",
-        "Channel 4 Audio Loss": "600.x.3@i",
-        "Channel 5 Audio Loss": "600.x.4@i",
-        "Channel 6 Audio Loss": "600.x.5@i",
-        "Channel 7 Audio Loss": "600.x.6@i",
-        "Channel 8 Audio Loss": "600.x.7@i",
-        "Channel 9 Audio Loss": "600.x.8@i",
-        "Channel 10 Audio Loss": "600.x.9@i",
-        "Channel 11 Audio Loss": "600.x.10@i",
-        "Channel 12 Audio Loss": "600.x.11@i",
-        "Channel 13 Audio Loss": "600.x.12@i",
-        "Channel 14 Audio Loss": "600.x.13@i",
-        "Channel 15 Audio Loss": "600.x.14@i",
-        "Channel 16 Audio Loss": "600.x.15@i",
-
+        "Channel 1 Audio Loss": "530.x.0@i",
+        "Channel 2 Audio Loss": "530.x.1@i",
+        "Channel 3 Audio Loss": "530.x.2@i",
+        "Channel 4 Audio Loss": "530.x.3@i",
+        "Channel 5 Audio Loss": "530.x.4@i",
+        "Channel 6 Audio Loss": "530.x.5@i",
+        "Channel 7 Audio Loss": "530.x.6@i",
+        "Channel 8 Audio Loss": "530.x.7@i",
+        "Channel 9 Audio Loss": "530.x.8@i",
+        "Channel 10 Audio Loss": "530.x.9@i",
+        "Channel 11 Audio Loss": "530.x.10@i",
+        "Channel 12 Audio Loss": "530.x.11@i",
+        "Channel 13 Audio Loss": "530.x.12@i",
+        "Channel 14 Audio Loss": "530.x.13@i",
+        "Channel 15 Audio Loss": "530.x.14@i",
+        "Channel 16 Audio Loss": "530.x.15@i",
         # Channel Over
-        "Channel 1 Audio Over": "601.x.0@i",
-        "Channel 2 Audio Over": "601.x.1@i",
-        "Channel 3 Audio Over": "601.x.2@i",
-        "Channel 4 Audio Over": "601.x.3@i",
-        "Channel 5 Audio Over": "601.x.4@i",
-        "Channel 6 Audio Over": "601.x.5@i",
-        "Channel 7 Audio Over": "601.x.6@i",
-        "Channel 8 Audio Over": "601.x.7@i",
-        "Channel 9 Audio Over": "601.x.8@i",
-        "Channel 10 Audio Over": "601.x.9@i",
-        "Channel 11 Audio Over": "601.x.10@i",
-        "Channel 12 Audio Over": "601.x.11@i",
-        "Channel 13 Audio Over": "601.x.12@i",
-        "Channel 14 Audio Over": "601.x.13@i",
-        "Channel 15 Audio Over": "601.x.14@i",
-        "Channel 16 Audio Over": "601.x.15@i",
-
+        "Channel 1 Audio Over": "530.x.16@i",
+        "Channel 2 Audio Over": "530.x.17@i",
+        "Channel 3 Audio Over": "530.x.18@i",
+        "Channel 4 Audio Over": "530.x.19@i",
+        "Channel 5 Audio Over": "530.x.20@i",
+        "Channel 6 Audio Over": "530.x.21@i",
+        "Channel 7 Audio Over": "530.x.22@i",
+        "Channel 8 Audio Over": "530.x.23@i",
+        "Channel 9 Audio Over": "530.x.24@i",
+        "Channel 10 Audio Over": "530.x.25@i",
+        "Channel 11 Audio Over": "530.x.26@i",
+        "Channel 12 Audio Over": "530.x.27@i",
+        "Channel 13 Audio Over": "530.x.28@i",
+        "Channel 14 Audio Over": "530.x.29@i",
+        "Channel 15 Audio Over": "530.x.30@i",
+        "Channel 16 Audio Over": "530.x.31@i",
         # Channel Silence
-        "Channel 1 Audio Silence": "602.x.0@i",
-        "Channel 2 Audio Silence": "602.x.1@i",
-        "Channel 3 Audio Silence": "602.x.2@i",
-        "Channel 4 Audio Silence": "602.x.3@i",
-        "Channel 5 Audio Silence": "602.x.4@i",
-        "Channel 6 Audio Silence": "602.x.5@i",
-        "Channel 7 Audio Silence": "602.x.6@i",
-        "Channel 8 Audio Silence": "602.x.7@i",
-        "Channel 9 Audio Silence": "602.x.8@i",
-        "Channel 10 Audio Silence": "602.x.9@i",
-        "Channel 11 Audio Silence": "602.x.10@i",
-        "Channel 12 Audio Silence": "602.x.11@i",
-        "Channel 13 Audio Silence": "602.x.12@i",
-        "Channel 14 Audio Silence": "602.x.13@i",
-        "Channel 15 Audio Silence": "602.x.14@i",
-        "Channel 16 Audio Silence": "602.x.15@i",
-
+        "Channel 1 Audio Silence": "530.x.32@i",
+        "Channel 2 Audio Silence": "530.x.33@i",
+        "Channel 3 Audio Silence": "530.x.34@i",
+        "Channel 4 Audio Silence": "530.x.35@i",
+        "Channel 5 Audio Silence": "530.x.36@i",
+        "Channel 6 Audio Silence": "530.x.37@i",
+        "Channel 7 Audio Silence": "530.x.38@i",
+        "Channel 8 Audio Silence": "530.x.39@i",
+        "Channel 9 Audio Silence": "530.x.40@i",
+        "Channel 10 Audio Silence": "530.x.41@i",
+        "Channel 11 Audio Silence": "530.x.42@i",
+        "Channel 12 Audio Silence": "530.x.43@i",
+        "Channel 13 Audio Silence": "530.x.44@i",
+        "Channel 14 Audio Silence": "530.x.45@i",
+        "Channel 15 Audio Silence": "530.x.46@i",
+        "Channel 16 Audio Silence": "530.x.47@i",
         # Group Mono
-        "Group 1 Audio Mono 1 and 2": "603.x.0@i",
-        "Group 1 Audio Mono 3 and 4": "603.x.1@i",
-        "Group 2 Audio Mono 1 and 2": "603.x.2@i",
-        "Group 2 Audio Mono 3 and 4": "603.x.3@i",
-        "Group 3 Audio Mono 1 and 2": "603.x.4@i",
-        "Group 3 Audio Mono 3 and 4": "603.x.5@i",
-        "Group 4 Audio Mono 1 and 2": "603.x.6@i",
-        "Group 4 Audio Mono 3 and 4": "603.x.7@i",
-
+        "Group 1 Audio Mono 1 and 2": "530.x.48@i",
+        "Group 1 Audio Mono 3 and 4": "530.x.49@i",
+        "Group 2 Audio Mono 1 and 2": "530.x.50@i",
+        "Group 2 Audio Mono 3 and 4": "530.x.51@i",
+        "Group 3 Audio Mono 1 and 2": "530.x.52@i",
+        "Group 3 Audio Mono 3 and 4": "530.x.53@i",
+        "Group 4 Audio Mono 1 and 2": "530.x.54@i",
+        "Group 4 Audio Mono 3 and 4": "530.x.55@i",
         # Group Phase Reverse
-        "Group 1 Audio PhaseRev 1 and 2": "604.x.0@i",
-        "Group 1 Audio PhaseRev 3 and 4": "604.x.1@i",
-        "Group 2 Audio PhaseRev 1 and 2": "604.x.2@i",
-        "Group 2 Audio PhaseRev 3 and 4": "604.x.3@i",
-        "Group 3 Audio PhaseRev 1 and 2": "604.x.4@i",
-        "Group 3 Audio PhaseRev 3 and 4": "604.x.5@i",
-        "Group 4 Audio PhaseRev 1 and 2": "604.x.6@i",
-        "Group 4 Audio PhaseRev 3 and 4": "604.x.7@i",
+        "Group 1 Audio PhaseRev 1 and 2": "530.x.56@i",
+        "Group 1 Audio PhaseRev 3 and 4": "530.x.57@i",
+        "Group 2 Audio PhaseRev 1 and 2": "530.x.58@i",
+        "Group 2 Audio PhaseRev 3 and 4": "530.x.59@i",
+        "Group 3 Audio PhaseRev 1 and 2": "530.x.60@i",
+        "Group 3 Audio PhaseRev 3 and 4": "530.x.61@i",
+        "Group 4 Audio PhaseRev 1 and 2": "530.x.62@i",
+        "Group 4 Audio PhaseRev 3 and 4": "530.x.63@i",
     }
+
+    PAIRS = ["Audio 1 and 2", "Audio 3 and 4", "Audio 5 and 6", "Audio 7 and 8",
+     "Audio 9 and 10", "Audio 11 and 12", "Audio 13 and 14", "Audio 15 and 16"]
 
     def __init__(self, notebook: wx.Notebook, main_frame, wxconfig: wx.ConfigBase, http_thread):
         """Initialize our main application frame."""
@@ -847,27 +848,39 @@ class AudioNotify(wx.ScrolledWindow):
         self.SetBackgroundColour(DARK_GRAY)
         self.toggle_flag = True
         self.comboboxes: Dict[wx.ComboBox, str] = {}
-        self.spin_inputs: Dict[wx.SpinCtrl, str] = {}
-        self.selected_channel = 1  # Default to channel 1
-        self.selected_pair = 0  # Default to pair 1 (index 0)
+        self.channel_controls: Dict[wx.SpinCtrl, str] = {}
+        self.pair_controls: Dict[wx.SpinCtrl, str] = {}
 
         main_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        # Buttons for loading and applying values
-        btn_hbox = wx.BoxSizer()
-        load_label = wx.StaticText(self, label="Load Values from input")
+        load_label = wx.StaticText(self, label="Load Values from Input:")
         load_label.SetForegroundColour(WHITE)
 
         self.input = wx.SpinCtrl(self, min=1, max=32, initial=1)
         self.input.SetBackgroundColour(DARK_GRAY)
         self.input.SetForegroundColour(WHITE)
+
+        channel_label = wx.StaticText(self, label="Channel:")
+        channel_label.SetForegroundColour(WHITE)
+        self.channel = wx.SpinCtrl(self, min=1, max=16, initial=1)
+        self.channel.SetBackgroundColour(DARK_GRAY)
+        self.channel.SetForegroundColour(WHITE)
+
+        pair_label = wx.StaticText(self, label="Pair:")
+        pair_label.SetForegroundColour(WHITE)
+        self.pair = wx.ComboBox(self, choices=self.PAIRS, style=wx.CB_READONLY)
+        self.pair.SetSelection(0)
         self.load_btn = wx.Button(self, label="Load Values")
         self.load_btn.Bind(wx.EVT_BUTTON, self.load_values)
 
-        btn_hbox.Add(load_label, flag=wx.ALL | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL)
-        btn_hbox.Add(self.input, 0, wx.ALL, 10)
+        btn_hbox = wx.BoxSizer()
+        btn_hbox.Add(load_label, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
+        btn_hbox.Add(self.input, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+        btn_hbox.Add(channel_label, flag=wx.LEFT | wx.ALIGN_CENTER_VERTICAL, border=15)
+        btn_hbox.Add(self.channel, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+        btn_hbox.Add(pair_label, flag=wx.LEFT | wx.ALIGN_CENTER_VERTICAL, border=15)
+        btn_hbox.Add(self.pair, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
         btn_hbox.Add(self.load_btn, 0, wx.ALL, 10)
-        main_sizer.Add(btn_hbox, 0, wx.ALL | wx.CENTER, 10)
 
         # Input selection
         input_select_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -893,7 +906,11 @@ class AudioNotify(wx.ScrolledWindow):
         self.apply_input_btn.Bind(wx.EVT_BUTTON, self.on_apply_to_inputs)
         input_select_sizer.Add(self.apply_input_btn, 0, wx.ALL, 5)
 
-        main_sizer.Add(input_select_sizer, 0, wx.ALL | wx.CENTER, 10)
+        top_vbox = wx.BoxSizer(wx.VERTICAL)
+        top_vbox.Add(btn_hbox, 0, wx.TOP, 5)
+        top_vbox.Add(input_select_sizer, 0, wx.TOP, 5)
+
+        main_sizer.Add(top_vbox, 0, wx.ALL, 25)
 
         self.create_audio_monitoring_control(main_sizer)
 
@@ -927,17 +944,16 @@ class AudioNotify(wx.ScrolledWindow):
         self.channel_start.SetForegroundColour(WHITE)
         to_text = wx.StaticText(self, label="to")
         to_text.SetForegroundColour(WHITE)
-        self.channel_end = wx.SpinCtrl(self, min=1, max=16, initial=1)
+        self.channel_end = wx.SpinCtrl(self, min=1, max=16, initial=16)
         self.channel_end.SetBackgroundColour(DARK_GRAY)
         self.channel_end.SetForegroundColour(WHITE)
         channel_select_sizer.Add(self.channel_start, 0, wx.ALL, 5)
         channel_select_sizer.Add(to_text, 0, wx.CENTER)
         channel_select_sizer.Add(self.channel_end, 0, wx.ALL, 5)
 
-        main_sizer.Add(channel_select_sizer, 0, wx.ALL | wx.LEFT, 25)
-
         # Create a grid for the controls
         grid = wx.GridBagSizer(hgap=10, vgap=10)
+        grid.Add(channel_select_sizer, pos=(0, 0), span=(0,2), flag=wx.ALL | wx.ALIGN_LEFT, border=5)
 
         headers = ["Audio Over Level", "Audio Over Duration", "Audio Over Reset Duration",
                    "Audio Silence Level", "Audio Silence Duration", "Audio Silence Reset Duration",
@@ -950,11 +966,11 @@ class AudioNotify(wx.ScrolledWindow):
         for col, header in enumerate(headers):
             header_label = wx.StaticText(self, label=header)
             header_label.SetForegroundColour(WHITE)
-            grid.Add(header_label, pos=(0, col), flag=wx.ALL | wx.ALIGN_LEFT, border=5)
+            grid.Add(header_label, pos=(1, col), flag=wx.ALL | wx.ALIGN_LEFT, border=5)
 
             range_label = wx.StaticText(self, label=ranges[col])
             range_label.SetForegroundColour(WHITE)
-            grid.Add(range_label, pos=(1, col), flag=wx.ALL | wx.ALIGN_LEFT, border=5)
+            grid.Add(range_label, pos=(2, col), flag=wx.ALL | wx.ALIGN_LEFT, border=5)
 
         # Parameters for the selected channel
         parameters = [
@@ -969,16 +985,14 @@ class AudioNotify(wx.ScrolledWindow):
         ]
 
         # Add spin controls for the parameters
-        self.channel_controls = []
         for col, (var_id, min_val, max_val, default_val) in enumerate(parameters):
             spin = wx.SpinCtrl(self, min=min_val, max=max_val, initial=default_val)
             spin.SetBackgroundColour(DARK_GRAY)
             spin.SetForegroundColour(WHITE)
-            grid.Add(spin, pos=(2, col), flag=wx.ALL, border=5)
+            grid.Add(spin, pos=(3, col), flag=wx.ALL, border=5)
+            self.channel_controls[spin] = var_id
 
-            self.channel_controls.append((spin, var_id))
-
-        main_sizer.Add(grid, 0, wx.ALL, 10)
+        main_sizer.Add(grid, 0, wx.ALL | wx.LEFT, 25)
 
     def create_audio_monitoring_control_pair(self, main_sizer):
         control_label = wx.StaticText(self, label="Audio Monitoring Control Pair")
@@ -991,28 +1005,23 @@ class AudioNotify(wx.ScrolledWindow):
         main_sizer.Add(control_label, 0, wx.LEFT, 25)
 
         pair_select_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        pair_label = wx.StaticText(self, label="Select Pair:")
+        pair_label = wx.StaticText(self, label="Select Audio Pair:")
         pair_label.SetForegroundColour(WHITE)
         pair_select_sizer.Add(pair_label, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
 
-        self.pair_start = wx.SpinCtrl(self, min=1, max=16, initial=1)
-        self.pair_start.SetBackgroundColour(DARK_GRAY)
-        self.pair_start.SetForegroundColour(WHITE)
+        self.pair_start = wx.ComboBox(self, choices=self.PAIRS, style=wx.CB_READONLY)
+        self.pair_start.SetSelection(0)
         to_text = wx.StaticText(self, label="to")
         to_text.SetForegroundColour(WHITE)
-        self.pair_end = wx.SpinCtrl(self, min=1, max=16, initial=1)
-        self.pair_end.SetBackgroundColour(DARK_GRAY)
-        self.pair_end.SetForegroundColour(WHITE)
-
+        self.pair_end = wx.ComboBox(self, choices=self.PAIRS, style=wx.CB_READONLY)
+        self.pair_end.SetSelection(len(self.PAIRS)-1)
         pair_select_sizer.Add(self.pair_start, 0, wx.ALL, 5)
         pair_select_sizer.Add(to_text, 0, wx.CENTER)
         pair_select_sizer.Add(self.pair_end, 0, wx.ALL, 5)
 
-        main_sizer.Add(pair_select_sizer, 0, wx.ALL | wx.LEFT, 25)
-
         # Create a grid for the controls
         grid = wx.GridBagSizer(hgap=10, vgap=10)
-
+        grid.Add(pair_select_sizer, pos=(0, 0), span=(0, 3), flag=wx.ALL | wx.ALIGN_LEFT, border=5)
         # Headers for the grid
         headers = ["Mono Detection Level", "Mono Detection Duration", "Mono Detection Reset Duration",
                    "Phase Reverse Level", "Phase Reverse Duration", "Phase Reverse Reset Duration"]
@@ -1023,11 +1032,11 @@ class AudioNotify(wx.ScrolledWindow):
         for col, header in enumerate(headers):
             header_label = wx.StaticText(self, label=header)
             header_label.SetForegroundColour(WHITE)
-            grid.Add(header_label, pos=(0, col), flag=wx.ALL | wx.ALIGN_LEFT, border=5)
+            grid.Add(header_label, pos=(1, col), flag=wx.ALL | wx.ALIGN_LEFT, border=5)
 
             range_label = wx.StaticText(self, label=ranges[col])
             range_label.SetForegroundColour(WHITE)
-            grid.Add(range_label, pos=(1, col), flag=wx.ALL | wx.ALIGN_LEFT, border=5)
+            grid.Add(range_label, pos=(2, col), flag=wx.ALL | wx.ALIGN_LEFT, border=5)
 
         parameters = [
             (self.MONO_DETECTION_LEVEL, 20, 50, 20),
@@ -1039,17 +1048,14 @@ class AudioNotify(wx.ScrolledWindow):
         ]
 
         # Add spin controls for the parameters
-        self.pair_controls = []
         for col, (var_id, min_val, max_val, default_val) in enumerate(parameters):
             spin = wx.SpinCtrl(self, min=min_val, max=max_val, initial=default_val)
             spin.SetBackgroundColour(DARK_GRAY)
             spin.SetForegroundColour(WHITE)
-            grid.Add(spin, pos=(2, col), flag=wx.ALL, border=5)
+            grid.Add(spin, pos=(3, col), flag=wx.ALL, border=5)
+            self.pair_controls[spin] = var_id
 
-            # Store the control with its parameter type
-            self.pair_controls.append((spin, var_id))
-
-        main_sizer.Add(grid, 0, wx.ALL, 10)
+        main_sizer.Add(grid, 0, wx.ALL | wx.LEFT, 25)
 
     def create_audio_notify(self, main_sizer):
         # Audio Notify header
@@ -1140,7 +1146,7 @@ class AudioNotify(wx.ScrolledWindow):
                 grid.Add(separator, pos=(row, 0), span=(1, 2), flag=wx.EXPAND | wx.ALL, border=5)
                 row += 1
 
-        main_sizer.Add(grid, 0, wx.ALL, 10)
+        main_sizer.Add(grid, 0, wx.ALL | wx.LEFT, 25)
 
     def update_status(self, message, pane=0):
         self.main_frame.SetStatusText(message, pane)
@@ -1167,41 +1173,48 @@ class AudioNotify(wx.ScrolledWindow):
 
         from_input = self.input_from.GetValue()
         to_input = self.input_to.GetValue()
-
+        from_channel = self.channel_start.GetValue()
+        to_channel = self.channel_end.GetValue()
+        from_pair = self.pair_start.GetSelection()
+        to_pair = self.pair_end.GetSelection()
         if from_input > to_input:
             self.error_alert("Starting input must be less than or equal to ending input.")
             return
+        if from_channel > to_channel:
+            self.error_alert("Starting channel must be less than or equal to ending input.")
+            return
+        if from_pair > to_pair:
+            self.error_alert("Starting pair must be less than or equal to ending input.")
+            return
+        threading.Thread(target=self._apply_to_inputs_thread, args=(ip, from_input, to_input, from_channel, to_channel, from_pair, to_pair)).start()
 
-        threading.Thread(target=self._apply_to_inputs_thread, args=(ip, from_input, to_input)).start()
-
-    def _apply_to_inputs_thread(self, ip, from_input, to_input):
+    def _apply_to_inputs_thread(self, ip, from_input, to_input, from_channel, to_channel, from_pair, to_pair):
         self.apply_input_btn.Disable()
-        self.update_status(f"Applying config to inputs {from_input} to {to_input}")
+        self.update_status(f"Applying config to inputs {from_input} / {to_input}")
 
         for input_num in range(from_input, to_input + 1):
-            # Apply channel settings
-            for channel in range(1, 17):
-                for spin, var_id in self.channel_controls:
-                    value = spin.GetValue()
-                    # Replace x with input_num-1 and y with channel-1
-                    var_id_formatted = var_id.replace("x", str(input_num - 1)).replace("y", str(channel - 1))
-                    url = f"http://{ip}/v.api/apis/EV/SET/parameter/{var_id_formatted}/{value}"
+            self.update_status(f"Applying configuration to input {input_num} / {to_input}")
+            for channel_num in range(from_channel, to_channel + 1):
+                for spinctrl, var_id in self.channel_controls.items():
+                    value = spinctrl.GetValue()
+                    var_id = var_id.replace("x", str(input_num - 1)).replace("y", str(channel_num-1)) # -1 due to 0 indexed var ids
+                    #print(var_id)
+                    url = f"http://{ip}/v.api/apis/EV/SET/parameter/{var_id}/{value}"
+                    self.http.get(url,)
+
+            for pair_num in range(from_pair, to_pair + 1):
+                for spinctrl, var_id in self.pair_controls.items():
+                    value = spinctrl.GetValue()
+                    var_id = var_id.replace("x", str(input_num - 1)).replace("y", str(pair_num)) # No -1 as combobox is 0 indexed
+                    #print(var_id)
+                    url = f"http://{ip}/v.api/apis/EV/SET/parameter/{var_id}/{value}"
                     self.http.get(url)
 
-            # Apply pair settings
-            for pair in range(8):
-                for spin, var_id in self.pair_controls:
-                    value = spin.GetValue()
-                    # Replace x with input_num-1 and y with pair
-                    var_id_formatted = var_id.replace("x", str(input_num - 1)).replace("y", str(pair))
-                    url = f"http://{ip}/v.api/apis/EV/SET/parameter/{var_id_formatted}/{value}"
-                    self.http.get(url)
-
-            # Apply notification settings
             for combobox, var_id in self.comboboxes.items():
                 value = combobox.GetSelection()
-                var_id_formatted = var_id.replace("x", str(input_num - 1))
-                url = f"http://{ip}/v.api/apis/EV/SET/parameter/{var_id_formatted}/{value}"
+                var_id = var_id.replace("x", str(input_num - 1))
+                #print(var_id)
+                url = f"http://{ip}/v.api/apis/EV/SET/parameter/{var_id}/{value}"
                 self.http.get(url)
 
         self.apply_input_btn.Enable()
@@ -1214,21 +1227,56 @@ class AudioNotify(wx.ScrolledWindow):
             self.error_alert("IP not set. Try connecting first.")
             return
 
-        # Get the current input number
+        # Get the load values
         input_num = self.input.GetValue()
-        threading.Thread(target=self._load_values_thread, args=(ip, input_num)).start()
+        channel = self.channel.GetValue()
+        pair = self.pair.GetSelection() + 1 # As selection starts from 0
+        threading.Thread(target=self._load_values_thread, args=(ip, input_num, channel, pair)).start()
 
-    def _load_values_thread(self, ip, input_num):
+    def _load_values_thread(self, ip, input_num, channel, pair):
         self.load_btn.Disable()
         self.update_status(f"Loading values from card for input {input_num}")
 
-        # Load channel settings for the selected channel
-        channel = self.selected_channel
-        for i, (spin, var_id) in enumerate(self.channel_controls):
+        # Load channel settings for the selected input's selected channel
+        for i, (spin, var_id) in enumerate(self.channel_controls.items()):
             var_id_formatted = var_id.replace("x", str(input_num - 1)).replace("y", str(channel - 1))
             url = f"http://{ip}/v.api/apis/EV/GET/parameter/{var_id_formatted}"
             op = self.http.get(url, block=True)
-            print(op)
+            op_content = json.loads(op.content)
+            try:
+                value = int(op_content.get("value", None))
+                wx.CallAfter(spin.SetValue, value)
+            except (ValueError, TypeError) as e:
+                self.error_alert(f"Did not get expected value for parameter {var_id_formatted}.")
+                continue
+
+        # Load pair settings for the selected input's selected pair
+        for i, (spin, var_id) in enumerate(self.pair_controls.items()):
+            var_id_formatted = var_id.replace("x", str(input_num - 1)).replace("y", str(pair - 1))
+            url = f"http://{ip}/v.api/apis/EV/GET/parameter/{var_id_formatted}"
+            op = self.http.get(url, block=True)
+            op_content = json.loads(op.content)
+            try:
+                value = int(op_content.get("value", None))
+                wx.CallAfter(spin.SetValue, value)
+            except (ValueError, TypeError) as e:
+                self.error_alert(f"Did not get expected value for parameter {var_id_formatted}.")
+                continue
+
+        # Load Values for combobox
+        for box, varid in self.comboboxes.items():
+            varid = varid.replace("x", str(input_num))
+            url = f"http://{ip}/v.api/apis/EV/GET/parameter/{varid}"
+            op = self.http.get(url, block=True)
+            op_content = json.loads(op.content)
+            try:
+                value = int(op_content.get("value", None))
+                wx.CallAfter(box.SetSelection, value)
+            except (ValueError, TypeError) as e:
+                self.error_alert(f"Did not get expected value for parameter {varid}.")
+                continue
+        self.load_btn.Enable()
+        self.update_status("Successfully loaded values from Card")
 
 if __name__ == "__main__":
     app = WIT.InspectableApp(DEBUG)
