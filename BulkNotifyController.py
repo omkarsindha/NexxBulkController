@@ -105,7 +105,6 @@ class AppPanel(wx.Panel):
         self.http = http_thread
         self.wxconfig = wxconfig
 
-        # Set background color
         self.SetBackgroundColour(DARK_GRAY)
 
         # IP label and text ctrl
@@ -130,6 +129,10 @@ class AppPanel(wx.Panel):
         self.page1 = SystemNotify(self.notebook, frame, self.wxconfig, self.http)
         self.page2 = VideoNotify(self.notebook, frame, self.wxconfig, self.http)
         self.page3 = AudioNotify(self.notebook, frame, self.wxconfig, self.http)
+        self.page4 = AdvancedNotify(self.notebook, frame, self.wxconfig, self.http)
+        self.page5 = AdvancedAudioNotify(self.notebook, frame, self.wxconfig, self.http)
+        self.notebook.AddPage(self.page5, "Advanced Audio Notify")
+        self.notebook.AddPage(self.page4, "Advanced Notify")
         self.notebook.AddPage(self.page3, "Audio Notify")
         self.notebook.AddPage(self.page2, "Video Notify")
         self.notebook.AddPage(self.page1, "System Notify")
@@ -1079,13 +1082,38 @@ class AudioNotify(wx.ScrolledWindow):
         # Create a grid for the audio notifications
         grid = wx.GridBagSizer(hgap=10, vgap=5)
 
+        # Input selection
+        toggle_input_select_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        toggle_input_label = wx.StaticText(self, label="Select Input:")
+        toggle_input_label.SetForegroundColour(WHITE)
+        toggle_input_select_sizer.Add(toggle_input_label, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+
+        self.toggle_input_from = wx.SpinCtrl(self, min=1, max=32, initial=1)
+        self.toggle_input_from.SetBackgroundColour(DARK_GRAY)
+        self.toggle_input_from.SetForegroundColour(WHITE)
+        toggle_input_select_sizer.Add(self.toggle_input_from, 0, wx.ALL, 5)
+
+        to_label = wx.StaticText(self, label="to")
+        to_label.SetForegroundColour(WHITE)
+        toggle_input_select_sizer.Add(to_label, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+
+        self.toggle_input_to = wx.SpinCtrl(self, min=1, max=32, initial=1)
+        self.toggle_input_to.SetBackgroundColour(DARK_GRAY)
+        self.toggle_input_to.SetForegroundColour(WHITE)
+        toggle_input_select_sizer.Add(self.toggle_input_to, 0, wx.ALL, 5)
+
+        self.apply_toggle_input_btn = wx.Button(self, label="Apply to Selected Inputs")
+        self.apply_toggle_input_btn.Bind(wx.EVT_BUTTON, self.on_apply_to_toggle_inputs)
+        toggle_input_select_sizer.Add(self.apply_toggle_input_btn, 0, wx.ALL, 5)
+
+        grid.Add(toggle_input_select_sizer, pos=(0, 0), flag=wx.ALL, border=5)
         traps_label = wx.StaticText(self, label="Audio Traps")
         traps_label.SetForegroundColour(WHITE)
-        grid.Add(traps_label, pos=(0, 0), flag=wx.ALL, border=5)
 
+        grid.Add(traps_label, pos=(1, 0), flag=wx.ALL, border=5)
         faults_label = wx.StaticText(self, label="Audio Faults")
         faults_label.SetForegroundColour(WHITE)
-        grid.Add(faults_label, pos=(0, 1), flag=wx.ALL, border=5)
+        grid.Add(faults_label, pos=(1, 1), flag=wx.ALL, border=5)
 
         # Group notifications by type for better organization
         notification_groups = [
@@ -1127,7 +1155,7 @@ class AudioNotify(wx.ScrolledWindow):
             for notification_type in group:
                 type_label = wx.StaticText(self, label=notification_type)
                 type_label.SetForegroundColour(WHITE)
-                grid.Add(type_label, pos=(row, 0), flag=wx.ALL | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL, border=5)
+                grid.Add(type_label, pos=(row+1, 0), flag=wx.ALL | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL, border=5)
 
                 combobox = wx.ComboBox(self, choices=["False", "True"], style=wx.CB_READONLY)
                 combobox.SetSelection(1)  # Default to True
@@ -1137,13 +1165,13 @@ class AudioNotify(wx.ScrolledWindow):
                 # Store the combobox with its var id
                 self.comboboxes[combobox] = self.AUDIO_NOTIFICATIONS[notification_type]
 
-                grid.Add(combobox, pos=(row, 1), flag=wx.ALL, border=5)
+                grid.Add(combobox, pos=(row+1, 1), flag=wx.ALL, border=5)
                 row += 1
 
             # Add a separator between groups
             if group != notification_groups[-1]:
                 separator = wx.StaticLine(self, style=wx.LI_HORIZONTAL)
-                grid.Add(separator, pos=(row, 0), span=(1, 2), flag=wx.EXPAND | wx.ALL, border=5)
+                grid.Add(separator, pos=(row+1, 0), span=(1, 2), flag=wx.EXPAND | wx.ALL, border=5)
                 row += 1
 
         main_sizer.Add(grid, 0, wx.ALL | wx.LEFT, 25)
@@ -1210,6 +1238,29 @@ class AudioNotify(wx.ScrolledWindow):
                     url = f"http://{ip}/v.api/apis/EV/SET/parameter/{var_id}/{value}"
                     self.http.get(url)
 
+        self.apply_input_btn.Enable()
+        self.update_status(f"Successfully applied config to inputs {from_input} to {to_input} :)")
+
+    def on_apply_to_toggle_inputs(self, evt):
+        ip = self.wxconfig.Read(IP_LOC, defaultVal="")  # Get IP from registry
+
+        if ip == "":
+            self.error_alert("IP not set. Try connecting first.")
+            return
+
+        from_input = self.toggle_input_from.GetValue()
+        to_input = self.toggle_input_to.GetValue()
+        if from_input > to_input:
+            self.error_alert("Starting input must be less than or equal to ending input.")
+            return
+        threading.Thread(target=self._apply_to_toggle_inputs_thread, args=(ip, from_input, to_input)).start()
+
+    def _apply_to_toggle_inputs_thread(self, ip, from_input, to_input):
+        self.apply_toggle_input_btn.Disable()
+        self.update_status(f"Applying config to inputs {from_input} / {to_input}")
+
+        for input_num in range(from_input, to_input + 1):
+            self.update_status(f"Applying configuration to input {input_num} / {to_input}")
             for combobox, var_id in self.comboboxes.items():
                 value = combobox.GetSelection()
                 var_id = var_id.replace("x", str(input_num - 1))
@@ -1217,7 +1268,7 @@ class AudioNotify(wx.ScrolledWindow):
                 url = f"http://{ip}/v.api/apis/EV/SET/parameter/{var_id}/{value}"
                 self.http.get(url)
 
-        self.apply_input_btn.Enable()
+        self.apply_toggle_input_btn.Enable()
         self.update_status(f"Successfully applied config to inputs {from_input} to {to_input} :)")
 
     def load_values(self, evt):
@@ -1277,6 +1328,612 @@ class AudioNotify(wx.ScrolledWindow):
                 continue
         self.load_btn.Enable()
         self.update_status("Successfully loaded values from Card")
+
+
+class AdvancedNotify(wx.ScrolledWindow):
+    """Advanced Notify panel (window)"""
+
+    # Advanced Notify parameters
+    # Dictionary mapping notification types to their var_ids
+    ADVANCED_NOTIFICATIONS = {
+        # Advanced Video Traps
+        "APL Above Max": "560.x.0@i",
+        "APL Below Min": "560.x.1@i",
+        "PPL Max above Threshold": "560.x.2@i",
+        "PPL Min below Threshold": "560.x.3@i",
+        "Loss of Closed Caption 1": "560.x.4@i",
+        "Loss of Closed Caption 2": "560.x.5@i",
+        "Loss of Closed Caption 3": "560.x.6@i",
+        "Loss of Closed Caption 4": "560.x.7@i",
+        "Loss of Text 1": "560.x.8@i",
+        "Loss of Text 2": "560.x.9@i",
+        "Loss of Text 3": "560.x.10@i",
+        "Loss of Text 4": "560.x.11@i",
+        "Loss of 708 Service 1": "560.x.12@i",
+        "Loss of 708 Service 2": "560.x.13@i",
+        "Loss of 708 Service 3": "560.x.14@i",
+        "Loss of 708 Service 4": "560.x.15@i",
+        "Loss of 708 Service 5": "560.x.16@i",
+        "Loss of 708 Service 6": "560.x.17@i",
+        "Loss of 708 Service 7": "560.x.18@i",
+        "Loss of 708 Service 8": "560.x.19@i",
+        "Loss of 708 Service 9": "560.x.20@i",
+        "Loss of 708 Service 10": "560.x.21@i",
+        "Loss of 708 Service 11": "560.x.22@i",
+        "Loss of 708 Service 12": "560.x.23@i",
+        "Loss of 708 Service 13": "560.x.24@i",
+        "Loss of 708 Service 14": "560.x.25@i",
+        "Loss of 708 Service 15": "560.x.26@i",
+        "Loss of 708 Service 16": "560.x.27@i",
+        "Loss of SMPTE AFD": "560.x.28@i",
+        "SMPTE AFD Value Change": "560.x.29@i",
+        "Loss of Video Index": "560.x.30@i",
+        "Video Index Value Change": "560.x.31@i",
+        "Loss of CC Waveform": "560.x.32@i",
+        "Loss of Program Rating": "560.x.33@i",
+        "Change of Program Rating": "560.x.34@i",
+        "Loss of SID": "560.x.35@i",
+        "Loss of VITC": "560.x.36@i",
+        "Loss of VITC Waveform": "560.x.37@i",
+        "Loss of WSS": "560.x.38@i",
+        "Loss of Extended Data Services": "560.x.39@i",
+        "Loss of World Standard Teletext": "560.x.40@i",
+        "SCTE 104 Program Start": "560.x.41@i",
+        "SCTE 104 Program End": "560.x.42@i",
+        "SCTE 104 Chapter Start": "560.x.43@i",
+        "SCTE 104 Chapter End": "560.x.44@i",
+        "SCTE 104 Provider Ad Start": "560.x.45@i",
+        "SCTE 104 Provider Ad End": "560.x.46@i",
+        "SCTE 104 Distributor Ad Start": "560.x.47@i",
+        "SCTE 104 Distributor Ad End": "560.x.48@i",
+        "SCTE 104 Placement Op Start": "560.x.49@i",
+        "SCTE 104 Placement Op End": "560.x.50@i",
+        "SCTE 104 Break Start": "560.x.51@i",
+        "SCTE 104 Break End": "560.x.52@i",
+        "SCTE 104 Web Restrict": "560.x.53@i",
+        "SCTE 104 Region Blackout": "560.x.54@i",
+        "SCTE 104 Splice Start Normal": "560.x.55@i",
+        "SCTE 104 Splice Start Immediate": "560.x.56@i",
+        "SCTE 104 Splice End Normal": "560.x.57@i",
+        "SCTE 104 Splice End Immediate": "560.x.58@i",
+        "SCTE 104 Splice Cancel": "560.x.59@i",
+        "Video Standard Change": "560.x.60@i",
+        "Video Standard Mismatch": "560.x.61@i",
+        "SCTE 104 Content Identification": "560.x.62@i",
+        "Loss of LTC": "560.x.63@i",
+        "LTC Frozen": "560.x.64@i",
+        "LTC Jumping": "560.x.65@i",
+        "Chroma Subsampling Mismatch": "560.x.66@i",
+        "Loss of DVB": "560.x.67@i",
+        "Loss of SCTE 27": "560.x.68@i",
+        "Storage Aspect Ratio Mismatch": "560.x.69@i",
+        "Display Aspect Ratio Mismatch": "560.x.70@i",
+        "Loss of Caption Data": "560.x.71@i",
+        "Loss of Caption Content": "560.x.72@i",
+    }
+
+    def __init__(self, notebook: wx.Notebook, main_frame, wxconfig: wx.ConfigBase, http_thread):
+        """Initialize our main application frame."""
+        wx.ScrolledWindow.__init__(self, parent=notebook)
+        self.main_frame = main_frame
+        self.http = http_thread
+        self.wxconfig = wxconfig
+        self.SetBackgroundColour(DARK_GRAY)
+        self.toggle_flag = True
+        self.comboboxes: Dict[wx.ComboBox, str] = {}
+
+        main_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        top_vbox = wx.BoxSizer(wx.VERTICAL)
+        btn_hbox = wx.BoxSizer()
+        load_label = wx.StaticText(self, label="Load Values from input")
+        load_label.SetForegroundColour(WHITE)
+
+        self.input = wx.SpinCtrl(self, min=1, max=32, initial=1)
+        self.input.SetBackgroundColour(DARK_GRAY)
+        self.input.SetForegroundColour(WHITE)
+        self.load_btn = wx.Button(self, label="Load Values")
+        self.load_btn.Bind(wx.EVT_BUTTON, self.load_values)
+
+        btn_hbox.Add(load_label, flag=wx.ALL | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL)
+        btn_hbox.Add(self.input, 0, wx.ALL, 10)
+        btn_hbox.Add(self.load_btn, 0, wx.ALL, 10)
+
+        input_select_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        input_label = wx.StaticText(self, label="Select Input:")
+        input_label.SetForegroundColour(WHITE)
+        input_select_sizer.Add(input_label, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+
+        self.input_from = wx.SpinCtrl(self, min=1, max=32, initial=1)
+        self.input_from.SetBackgroundColour(DARK_GRAY)
+        self.input_from.SetForegroundColour(WHITE)
+        input_select_sizer.Add(self.input_from, 0, wx.ALL, 5)
+
+        to_label = wx.StaticText(self, label="to")
+        to_label.SetForegroundColour(WHITE)
+        input_select_sizer.Add(to_label, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+
+        self.input_to = wx.SpinCtrl(self, min=1, max=32, initial=1)
+        self.input_to.SetBackgroundColour(DARK_GRAY)
+        self.input_to.SetForegroundColour(WHITE)
+        input_select_sizer.Add(self.input_to, 0, wx.ALL, 5)
+
+        self.apply_input_btn = wx.Button(self, label="Apply to Selected Inputs")
+        self.apply_input_btn.Bind(wx.EVT_BUTTON, self.on_apply_to_inputs)
+        input_select_sizer.Add(self.apply_input_btn, 0, wx.ALL, 5)
+
+        top_vbox.Add(btn_hbox, 0, wx.TOP, 5)
+        top_vbox.Add(input_select_sizer, 0, wx.TOP, 5)
+
+        main_sizer.Add(top_vbox, 0, wx.ALL, 25)
+
+        self.create_advanced_notify(main_sizer)
+
+        self.SetSizer(main_sizer)
+        self.SetScrollRate(20, 20)
+        self.FitInside()
+
+    def create_advanced_notify(self, main_sizer):
+        # Advanced Notify header
+        notify_label = wx.StaticText(self, label="Advanced Notify")
+        font = notify_label.GetFont()
+        font.PointSize += 6
+        font = font.Bold()
+        font = font.Italic()
+        notify_label.SetFont(font)
+        notify_label.SetForegroundColour(YELLOW)
+
+        head_hbox = wx.BoxSizer()
+        head_hbox.Add(notify_label, 0, wx.ALL, 5)
+
+        self.toggle_all_button = wx.Button(self, label="Toggle All")
+        self.toggle_all_button.Bind(wx.EVT_BUTTON, self.on_toggle_all)
+        head_hbox.Add(self.toggle_all_button, 0, wx.CENTER | wx.LEFT, 25)
+
+        main_sizer.Add(head_hbox, 0, wx.LEFT, 20)
+
+        # Create a grid for the advanced notifications
+        grid = wx.GridBagSizer(hgap=10, vgap=5)
+
+        traps_label = wx.StaticText(self, label="Advanced Video Traps")
+        traps_label.SetForegroundColour(WHITE)
+        grid.Add(traps_label, pos=(0, 0), flag=wx.ALL, border=5)
+
+        faults_label = wx.StaticText(self, label="Advanced Video Faults")
+        faults_label.SetForegroundColour(WHITE)
+        grid.Add(faults_label, pos=(0, 1), flag=wx.ALL, border=5)
+
+        # Add all notifications to the grid
+        row = 1
+        for notification_type, var_id in self.ADVANCED_NOTIFICATIONS.items():
+            type_label = wx.StaticText(self, label=notification_type)
+            type_label.SetForegroundColour(WHITE)
+            grid.Add(type_label, pos=(row, 0), flag=wx.ALL | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL, border=5)
+
+            combobox = wx.ComboBox(self, choices=["False", "True"], style=wx.CB_READONLY)
+            combobox.SetSelection(1)  # Default to True
+            combobox.SetBackgroundColour(DARK_GRAY)
+            combobox.SetForegroundColour(WHITE)
+
+            # Store the combobox with its var id
+            self.comboboxes[combobox] = var_id
+
+            grid.Add(combobox, pos=(row, 1), flag=wx.ALL, border=5)
+            row += 1
+
+        main_sizer.Add(grid, 0, wx.ALL | wx.LEFT, 25)
+
+    def update_status(self, message, pane=0):
+        self.main_frame.SetStatusText(message, pane)
+
+    def on_toggle_all(self, evt):
+        for combobox in self.comboboxes:
+            if self.toggle_flag:
+                combobox.SetSelection(0)  # Set to False
+            else:
+                combobox.SetSelection(1)  # Set to True
+        self.toggle_flag = not self.toggle_flag
+
+    def error_alert(self, message: str) -> None:
+        dlg: wx.MessageDialog = wx.MessageDialog(self, message, "Error", wx.OK | wx.ICON_ERROR)
+        dlg.ShowModal()
+        dlg.Destroy()
+
+    def on_apply_to_inputs(self, evt):
+        ip = self.wxconfig.Read(IP_LOC, defaultVal="")  # Get IP from registry
+
+        if ip == "":
+            self.error_alert("IP not set. Try connecting first.")
+            return
+
+        from_input = self.input_from.GetValue()
+        to_input = self.input_to.GetValue()
+
+        if from_input > to_input:
+            self.error_alert("Starting input must be less than or equal to ending input.")
+            return
+
+        threading.Thread(target=self._apply_to_inputs_thread, args=(ip, from_input, to_input)).start()
+
+    def _apply_to_inputs_thread(self, ip, from_input, to_input):
+        self.apply_input_btn.Disable()
+        self.update_status(f"Applying config to inputs {from_input} / {to_input}")
+
+        for input_num in range(from_input, to_input + 1):
+            self.update_status(f"Applying configuration to input {input_num} / {to_input}")
+            for combobox, var_id in self.comboboxes.items():
+                value = combobox.GetSelection()
+                var_id = var_id.replace("x", str(input_num - 1))  # -1 due to 0 indexed var ids
+                url = f"http://{ip}/v.api/apis/EV/SET/parameter/{var_id}/{value}"
+                self.http.get(url)
+
+        self.apply_input_btn.Enable()
+        self.update_status(f"Successfully applied config to inputs {from_input} to {to_input} :)")
+
+    def load_values(self, evt):
+        ip = self.wxconfig.Read(IP_LOC, defaultVal="")  # Get IP from registry
+
+        if ip == "":
+            self.error_alert("IP not set. Try connecting first.")
+            return
+
+        # Get the input number
+        input_num = self.input.GetValue()
+        threading.Thread(target=self._load_values_thread, args=(ip, input_num)).start()
+
+    def _load_values_thread(self, ip, input_num):
+        self.load_btn.Disable()
+        self.update_status(f"Loading values from card for input {input_num}")
+
+        # Load values for comboboxes
+        for box, var_id in self.comboboxes.items():
+            var_id = var_id.replace("x", str(input_num - 1))  # -1 due to 0 indexed var ids
+            url = f"http://{ip}/v.api/apis/EV/GET/parameter/{var_id}"
+            op = self.http.get(url, block=True)
+            op_content = json.loads(op.content)
+            try:
+                value = int(op_content.get("value", None))
+                wx.CallAfter(box.SetSelection, value)
+            except (ValueError, TypeError) as e:
+                self.error_alert(f"Did not get expected value for parameter {var_id}.")
+                continue
+
+        self.load_btn.Enable()
+        self.update_status("Successfully loaded values from Card")
+
+class AdvancedAudioNotify(wx.ScrolledWindow):
+    """Advanced Audio Notify panel (window)"""
+
+    # Advanced Audio Notify parameters
+    # Dictionary mapping notification types to their var_ids
+    ADVANCED_AUDIO_NOTIFICATIONS = {
+        # Audio Loudness Traps
+        "Audio Loudness Over Group 1 and 2 Program 1": "840.x.0@i",
+        "Audio Loudness Over Group 1 and 2 Program 2": "840.x.1@i",
+        "Audio Loudness Over Group 1 and 2 Program 3": "840.x.2@i",
+        "Audio Loudness Over Group 1 and 2 Program 4": "840.x.3@i",
+        "Audio Loudness Over Group 1 and 2 Program 5": "840.x.4@i",
+        "Audio Loudness Over Group 1 and 2 Program 6": "840.x.5@i",
+        "Audio Loudness Over Group 1 and 2 Program 7": "840.x.6@i",
+        "Audio Loudness Over Group 1 and 2 Program 8": "840.x.7@i",
+        "Audio Loudness Over Group 3 and 4 Program 1": "840.x.8@i",
+        "Audio Loudness Over Group 3 and 4 Program 2": "840.x.9@i",
+        "Audio Loudness Over Group 3 and 4 Program 3": "840.x.10@i",
+        "Audio Loudness Over Group 3 and 4 Program 4": "840.x.11@i",
+        "Audio Loudness Over Group 3 and 4 Program 5": "840.x.12@i",
+        "Audio Loudness Over Group 3 and 4 Program 6": "840.x.13@i",
+        "Audio Loudness Over Group 3 and 4 Program 7": "840.x.14@i",
+        "Audio Loudness Over Group 3 and 4 Program 8": "840.x.15@i",
+        "Audio Loudness Silence Group 1 and 2 Program 1": "840.x.16@i",
+        "Audio Loudness Silence Group 1 and 2 Program 2": "840.x.17@i",
+        "Audio Loudness Silence Group 1 and 2 Program 3": "840.x.18@i",
+        "Audio Loudness Silence Group 1 and 2 Program 4": "840.x.19@i",
+        "Audio Loudness Silence Group 1 and 2 Program 5": "840.x.20@i",
+        "Audio Loudness Silence Group 1 and 2 Program 6": "840.x.21@i",
+        "Audio Loudness Silence Group 1 and 2 Program 7": "840.x.22@i",
+        "Audio Loudness Silence Group 1 and 2 Program 8": "840.x.23@i",
+        "Audio Loudness Silence Group 3 and 4 Program 1": "840.x.24@i",
+        "Audio Loudness Silence Group 3 and 4 Program 2": "840.x.25@i",
+        "Audio Loudness Silence Group 3 and 4 Program 3": "840.x.26@i",
+        "Audio Loudness Silence Group 3 and 4 Program 4": "840.x.27@i",
+        "Audio Loudness Silence Group 3 and 4 Program 5": "840.x.28@i",
+        "Audio Loudness Silence Group 3 and 4 Program 6": "840.x.29@i",
+        "Audio Loudness Silence Group 3 and 4 Program 7": "840.x.30@i",
+        "Audio Loudness Silence Group 3 and 4 Program 8": "840.x.31@i",
+    }
+
+    # Compressed Audio Notifications
+    COMPRESSED_AUDIO_NOTIFICATIONS = {
+        "Compressed Audio Loss Ch1/2 Grp1": "1009.x.4@i",
+        "Compressed Audio Loss Ch3/4 Grp1": "1009.x.5@i",
+        "Compressed Audio Loss Ch1/2 Grp2": "1009.x.6@i",
+        "Compressed Audio Loss Ch3/4 Grp2": "1009.x.7@i",
+        "Compressed Audio Loss Ch1/2 Grp3": "1009.x.8@i",
+        "Compressed Audio Loss Ch3/4 Grp3": "1009.x.9@i",
+        "Compressed Audio Loss Ch1/2 Grp4": "1009.x.10@i",
+        "Compressed Audio Loss Ch3/4 Grp4": "1009.x.11@i",
+        "Audio Type Change Ch1/2 Grp1": "1009.x.12@i",
+        "Audio Type Change Ch3/4 Grp1": "1009.x.13@i",
+        "Audio Type Change Ch1/2 Grp2": "1009.x.14@i",
+        "Audio Type Change Ch3/4 Grp2": "1009.x.15@i",
+        "Audio Type Change Ch1/2 Grp3": "1009.x.16@i",
+        "Audio Type Change Ch3/4 Grp3": "1009.x.17@i",
+        "Audio Type Change Ch1/2 Grp4": "1009.x.18@i",
+        "Audio Type Change Ch3/4 Grp4": "1009.x.19@i",
+    }
+
+    def __init__(self, notebook: wx.Notebook, main_frame, wxconfig: wx.ConfigBase, http_thread):
+        """Initialize our audio notify panel."""
+        wx.ScrolledWindow.__init__(self, parent=notebook)
+        self.main_frame = main_frame
+        self.http = http_thread
+        self.wxconfig = wxconfig
+        self.SetBackgroundColour(DARK_GRAY)
+        self.toggle_flag_loudness = True
+        self.toggle_flag_compressed = True
+        self.loudness_comboboxes: Dict[wx.ComboBox, str] = {}
+        self.compressed_comboboxes: Dict[wx.ComboBox, str] = {}
+
+        main_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        top_vbox = wx.BoxSizer(wx.VERTICAL)
+        btn_hbox = wx.BoxSizer()
+        load_label = wx.StaticText(self, label="Load Values from input")
+        load_label.SetForegroundColour(WHITE)
+
+        self.input = wx.SpinCtrl(self, min=1, max=32, initial=1)
+        self.input.SetBackgroundColour(DARK_GRAY)
+        self.input.SetForegroundColour(WHITE)
+        self.load_btn = wx.Button(self, label="Load Values")
+        self.load_btn.Bind(wx.EVT_BUTTON, self.load_values)
+
+        btn_hbox.Add(load_label, flag=wx.ALL | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL)
+        btn_hbox.Add(self.input, 0, wx.ALL, 10)
+        btn_hbox.Add(self.load_btn, 0, wx.ALL, 10)
+
+        input_select_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        input_label = wx.StaticText(self, label="Select Input:")
+        input_label.SetForegroundColour(WHITE)
+        input_select_sizer.Add(input_label, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+
+        self.input_from = wx.SpinCtrl(self, min=1, max=32, initial=1)
+        self.input_from.SetBackgroundColour(DARK_GRAY)
+        self.input_from.SetForegroundColour(WHITE)
+        input_select_sizer.Add(self.input_from, 0, wx.ALL, 5)
+
+        to_label = wx.StaticText(self, label="to")
+        to_label.SetForegroundColour(WHITE)
+        input_select_sizer.Add(to_label, 0, wx.ALL | wx.ALIGN_CENTER_VERTICAL, 5)
+
+        self.input_to = wx.SpinCtrl(self, min=1, max=32, initial=1)
+        self.input_to.SetBackgroundColour(DARK_GRAY)
+        self.input_to.SetForegroundColour(WHITE)
+        input_select_sizer.Add(self.input_to, 0, wx.ALL, 5)
+
+        self.apply_input_btn = wx.Button(self, label="Apply to Selected Inputs")
+        self.apply_input_btn.Bind(wx.EVT_BUTTON, self.on_apply_to_inputs)
+        input_select_sizer.Add(self.apply_input_btn, 0, wx.ALL, 5)
+
+        top_vbox.Add(btn_hbox, 0, wx.TOP, 5)
+        top_vbox.Add(input_select_sizer, 0, wx.TOP, 5)
+
+        main_sizer.Add(top_vbox, 0, wx.ALL, 25)
+
+        # Create both audio notification sections
+        self.create_audio_loudness_notify(main_sizer)
+        self.create_compressed_audio_notify(main_sizer)
+
+        self.SetSizer(main_sizer)
+        self.SetScrollRate(20, 20)
+        self.FitInside()
+
+    def create_audio_loudness_notify(self, main_sizer):
+        # Audio Loudness Notify header
+        notify_label = wx.StaticText(self, label="Audio Loudness Notify")
+        font = notify_label.GetFont()
+        font.PointSize += 6
+        font = font.Bold()
+        font = font.Italic()
+        notify_label.SetFont(font)
+        notify_label.SetForegroundColour(YELLOW)
+
+        head_hbox = wx.BoxSizer()
+        head_hbox.Add(notify_label, 0, wx.ALL, 5)
+
+        self.toggle_all_loudness_button = wx.Button(self, label="Toggle All")
+        self.toggle_all_loudness_button.Bind(wx.EVT_BUTTON, self.on_toggle_all_loudness)
+        head_hbox.Add(self.toggle_all_loudness_button, 0, wx.CENTER | wx.LEFT, 25)
+
+        main_sizer.Add(head_hbox, 0, wx.LEFT, 20)
+
+        # Create a grid for the audio loudness notifications
+        grid = wx.GridBagSizer(hgap=10, vgap=5)
+
+        traps_label = wx.StaticText(self, label="Audio Loudness Traps")
+        traps_label.SetForegroundColour(WHITE)
+        grid.Add(traps_label, pos=(0, 0), flag=wx.ALL, border=5)
+
+        faults_label = wx.StaticText(self, label="Audio Loudness Faults")
+        faults_label.SetForegroundColour(WHITE)
+        grid.Add(faults_label, pos=(0, 1), flag=wx.ALL, border=5)
+
+        # Add all notifications to the grid
+        row = 1
+        for notification_type, var_id in self.ADVANCED_AUDIO_NOTIFICATIONS.items():
+            type_label = wx.StaticText(self, label=notification_type)
+            type_label.SetForegroundColour(WHITE)
+            grid.Add(type_label, pos=(row, 0), flag=wx.ALL | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL, border=5)
+
+            combobox = wx.ComboBox(self, choices=["False", "True"], style=wx.CB_READONLY)
+            combobox.SetSelection(1)  # Default to True
+            combobox.SetBackgroundColour(DARK_GRAY)
+            combobox.SetForegroundColour(WHITE)
+
+            # Store the combobox with its var id
+            self.loudness_comboboxes[combobox] = var_id
+
+            grid.Add(combobox, pos=(row, 1), flag=wx.ALL, border=5)
+            row += 1
+
+        main_sizer.Add(grid, 0, wx.ALL | wx.LEFT, 25)
+
+    def create_compressed_audio_notify(self, main_sizer):
+        # Compressed Audio Notify header
+        notify_label = wx.StaticText(self, label="Compressed Audio Notify")
+        font = notify_label.GetFont()
+        font.PointSize += 6
+        font = font.Bold()
+        font = font.Italic()
+        notify_label.SetFont(font)
+        notify_label.SetForegroundColour(YELLOW)
+
+        head_hbox = wx.BoxSizer()
+        head_hbox.Add(notify_label, 0, wx.ALL, 5)
+
+        self.toggle_all_compressed_button = wx.Button(self, label="Toggle All")
+        self.toggle_all_compressed_button.Bind(wx.EVT_BUTTON, self.on_toggle_all_compressed)
+        head_hbox.Add(self.toggle_all_compressed_button, 0, wx.CENTER | wx.LEFT, 25)
+
+        main_sizer.Add(head_hbox, 0, wx.LEFT | wx.TOP, 20)
+
+        # Create a grid for the compressed audio notifications
+        grid = wx.GridBagSizer(hgap=10, vgap=5)
+
+        traps_label = wx.StaticText(self, label="Compressed Audio Traps")
+        traps_label.SetForegroundColour(WHITE)
+        grid.Add(traps_label, pos=(0, 0), flag=wx.ALL, border=5)
+
+        faults_label = wx.StaticText(self, label="Compressed Audio Faults")
+        faults_label.SetForegroundColour(WHITE)
+        grid.Add(faults_label, pos=(0, 1), flag=wx.ALL, border=5)
+
+        # Add all notifications to the grid
+        row = 1
+        for notification_type, var_id in self.COMPRESSED_AUDIO_NOTIFICATIONS.items():
+            type_label = wx.StaticText(self, label=notification_type)
+            type_label.SetForegroundColour(WHITE)
+            grid.Add(type_label, pos=(row, 0), flag=wx.ALL | wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL, border=5)
+
+            combobox = wx.ComboBox(self, choices=["False", "True"], style=wx.CB_READONLY)
+            combobox.SetSelection(1)  # Default to True
+            combobox.SetBackgroundColour(DARK_GRAY)
+            combobox.SetForegroundColour(WHITE)
+
+            # Store the combobox with its var id
+            self.compressed_comboboxes[combobox] = var_id
+
+            grid.Add(combobox, pos=(row, 1), flag=wx.ALL, border=5)
+            row += 1
+
+        main_sizer.Add(grid, 0, wx.ALL | wx.LEFT, 25)
+
+    def update_status(self, message, pane=0):
+        self.main_frame.SetStatusText(message, pane)
+
+    def on_toggle_all_loudness(self, evt):
+        for combobox in self.loudness_comboboxes:
+            if self.toggle_flag_loudness:
+                combobox.SetSelection(0)  # Set to False
+            else:
+                combobox.SetSelection(1)  # Set to True
+        self.toggle_flag_loudness = not self.toggle_flag_loudness
+
+    def on_toggle_all_compressed(self, evt):
+        for combobox in self.compressed_comboboxes:
+            if self.toggle_flag_compressed:
+                combobox.SetSelection(0)  # Set to False
+            else:
+                combobox.SetSelection(1)  # Set to True
+        self.toggle_flag_compressed = not self.toggle_flag_compressed
+
+    def error_alert(self, message: str) -> None:
+        dlg: wx.MessageDialog = wx.MessageDialog(self, message, "Error", wx.OK | wx.ICON_ERROR)
+        dlg.ShowModal()
+        dlg.Destroy()
+
+    def on_apply_to_inputs(self, evt):
+        ip = self.wxconfig.Read(IP_LOC, defaultVal="")  # Get IP from registry
+
+        if ip == "":
+            self.error_alert("IP not set. Try connecting first.")
+            return
+
+        from_input = self.input_from.GetValue()
+        to_input = self.input_to.GetValue()
+
+        if from_input > to_input:
+            self.error_alert("Starting input must be less than or equal to ending input.")
+            return
+
+        threading.Thread(target=self._apply_to_inputs_thread, args=(ip, from_input, to_input)).start()
+
+    def _apply_to_inputs_thread(self, ip, from_input, to_input):
+        self.apply_input_btn.Disable()
+        self.update_status(f"Applying config to inputs {from_input} / {to_input}")
+
+        for input_num in range(from_input, to_input + 1):
+            self.update_status(f"Applying configuration to input {input_num} / {to_input}")
+
+            # Apply loudness settings
+            for combobox, var_id in self.loudness_comboboxes.items():
+                value = combobox.GetSelection()
+                var_id = var_id.replace("x", str(input_num - 1))  # -1 due to 0 indexed var ids
+                url = f"http://{ip}/v.api/apis/EV/SET/parameter/{var_id}/{value}"
+                self.http.get(url)
+
+            # Apply compressed audio settings
+            for combobox, var_id in self.compressed_comboboxes.items():
+                value = combobox.GetSelection()
+                var_id = var_id.replace("x", str(input_num - 1))  # -1 due to 0 indexed var ids
+                url = f"http://{ip}/v.api/apis/EV/SET/parameter/{var_id}/{value}"
+                self.http.get(url)
+
+        self.apply_input_btn.Enable()
+        self.update_status(f"Successfully applied audio config to inputs {from_input} to {to_input} :)")
+
+    def load_values(self, evt):
+        ip = self.wxconfig.Read(IP_LOC, defaultVal="")  # Get IP from registry
+
+        if ip == "":
+            self.error_alert("IP not set. Try connecting first.")
+            return
+
+        # Get the input number
+        input_num = self.input.GetValue()
+        threading.Thread(target=self._load_values_thread, args=(ip, input_num)).start()
+
+    def _load_values_thread(self, ip, input_num):
+        self.load_btn.Disable()
+        self.update_status(f"Loading audio values from card for input {input_num}")
+
+        # Load values for loudness comboboxes
+        for box, var_id in self.loudness_comboboxes.items():
+            var_id = var_id.replace("x", str(input_num - 1))  # -1 due to 0 indexed var ids
+            url = f"http://{ip}/v.api/apis/EV/GET/parameter/{var_id}"
+            op = self.http.get(url, block=True)
+            op_content = json.loads(op.content)
+            try:
+                value = int(op_content.get("value", None))
+                wx.CallAfter(box.SetSelection, value)
+            except (ValueError, TypeError) as e:
+                self.error_alert(f"Did not get expected value for parameter {var_id}.")
+                continue
+
+        # Load values for compressed audio comboboxes
+        for box, var_id in self.compressed_comboboxes.items():
+            var_id = var_id.replace("x", str(input_num - 1))  # -1 due to 0 indexed var ids
+            url = f"http://{ip}/v.api/apis/EV/GET/parameter/{var_id}"
+            op = self.http.get(url, block=True)
+            op_content = json.loads(op.content)
+            try:
+                value = int(op_content.get("value", None))
+                wx.CallAfter(box.SetSelection, value)
+            except (ValueError, TypeError) as e:
+                self.error_alert(f"Did not get expected value for parameter {var_id}.")
+                continue
+
+        self.load_btn.Enable()
+        self.update_status("Successfully loaded audio values from Card")
 
 if __name__ == "__main__":
     app = WIT.InspectableApp(DEBUG)
